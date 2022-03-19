@@ -16,9 +16,9 @@ struct PCB {
 };
 
 struct CPU {
-    struct prc;
+    struct PCB pcb;
 };
 
 struct IO {
-    struct prc;
+    struct PCB pcb;
 };
