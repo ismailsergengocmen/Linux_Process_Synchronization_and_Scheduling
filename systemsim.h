@@ -3,8 +3,8 @@
 char* ALG;
 int T1;
 int T2;
-char* Q1;
-long long Q2;
+long long Q1;
+char* Q2;
 char* burst_dist;
 long long burstlen ;
 long long min_burst;
