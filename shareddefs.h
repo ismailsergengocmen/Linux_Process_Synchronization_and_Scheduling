@@ -1,6 +1,6 @@
 #include <pthread.h>
 
-struct pcb {
+struct PCB {
     int pid;
     pthread_t tid;
     int state; // 1- READY, 2- RUNNING, 3-WAITING
@@ -15,10 +15,10 @@ struct pcb {
     long long total_exec_time;
 };
 
-struct cpu {
+struct CPU {
     struct prc;
 };
 
-struct io {
+struct IO {
     struct prc;
 };
