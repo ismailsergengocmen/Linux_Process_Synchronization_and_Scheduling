@@ -1,3 +1,5 @@
+#ifndef SYSTEMSIM_H
+#define SYSTEMSIM_H
 #include "shareddefs.h"
 
 char* ALG;
@@ -28,3 +30,5 @@ pthread_cond_t scheduler;
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
 static void* process_thread(void* param);
+
+#endif

@@ -1,4 +1,13 @@
-#include "queue.c"
+#ifndef SHAREDDEFS_H
+#define SHAREDDEFS_H
+
+#include <pthread.h>
+
+// The queue, front stores the front node of LL and rear stores the
+// last node of LL
+struct Queue {
+    struct QNode *front, *rear;
+};
 
 struct PCB {
     int pid;
@@ -21,3 +30,17 @@ struct Device {
     struct Queue queue;
     int count;
 };
+
+// A linked list (LL) node to store a queue entry
+struct QNode {
+    struct PCB pcb;
+    struct QNode* next;
+};
+
+struct QNode* newNode(struct PCB pcb);
+struct Queue* createQueue();
+void enQueue(struct Queue* q, struct PCB pcb);
+void deQueue(struct Queue* q);
+
+#endif
+

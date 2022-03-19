@@ -1,7 +1,7 @@
 all: systemsim
 
-systemism: systemsim.c
-	gcc -Wall -o systemsim systemsim.c -lrt -lpthread
+systemsim: systemsim.c
+	gcc -Wall -o systemsim systemsim.c shareddefs.c -lrt -lpthread
 
 clean: 
-	rm -fr *~ systemsim 
+	rm -fr *~ systemsim

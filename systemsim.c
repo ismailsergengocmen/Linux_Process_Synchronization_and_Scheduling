@@ -1,7 +1,16 @@
-#include "queue.c"
 #include "systemsim.h"
 #include <stdlib.h>
 #include <string.h>
+
+static void* process_generator(void* param) {
+    pthread_t tid;
+    pthread_attr_t attr;
+
+    if (ALLP < 10) {
+        //pthread_attr_init (&attr);
+        //pthread_create (&tid, &attr, runner, argv[1]);
+    }
+}
 
 int main(int argc, char** argv) {
     ALG = argv[1];
@@ -26,6 +35,10 @@ int main(int argc, char** argv) {
     MAXP = atoi(argv[13]);
     ALLP = atoi(argv[14]);
     OUTMODE = atoi(argv[15]);
+
+    struct Queue* a = createQueue();
+
+
 
     return 0;
 }
