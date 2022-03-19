@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include "queue.c"
 
 struct PCB {
     int pid;
@@ -15,10 +15,9 @@ struct PCB {
     long long total_exec_time;
 };
 
-struct CPU {
+struct Device {
     struct PCB pcb;
-};
-
-struct IO {
-    struct PCB pcb;
+    pthread_cond_t cv;
+    struct Queue queue;
+    int count;
 };

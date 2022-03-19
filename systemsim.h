@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include "shareddefs.h"
 
 char* ALG;
 int T1;
@@ -17,9 +17,12 @@ int MAXP;
 int ALLP;
 int OUTMODE;
 
-pthread_cond_t rq;
-pthread_cond_t device1;
-pthread_cond_t device2;
+struct Device CPU;
+struct Device IO1;
+struct Device IO2;
+
+struct Queue TERMINATED;
+
 pthread_cond_t scheduler;
 
 static void* process_generator(void* param);

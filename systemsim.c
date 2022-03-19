@@ -27,9 +27,5 @@ int main(int argc, char** argv) {
     ALLP = atoi(argv[14]);
     OUTMODE = atoi(argv[15]);
 
-    
-
-
-
     return 0;
 }
