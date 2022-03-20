@@ -1,7 +1,7 @@
 #ifndef SYSTEMSIM_H
 #define SYSTEMSIM_H
 #include "shareddefs.h"
-
+#include "semaphore.h"
 
 char* ALG;
 int T1;
@@ -33,10 +33,11 @@ struct Queue* TERMINATED;
 pthread_cond_t scheduler;
 
 pthread_mutex_t lock;
+sem_t S;
 
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
-static void* process_thread(void* param);
+static void* processThread(struct PCB* pcb);
 void calculateNewCpuBurst(struct PCB* pcb);
 
 #endif

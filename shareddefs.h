@@ -41,7 +41,7 @@ struct QNode {
 struct QNode* newNode(struct PCB pcb);
 struct Queue* createQueue();
 void enQueue(struct Queue* q, struct PCB pcb);
-void deQueue(struct Queue* q);
+struct PCB deQueue(struct Queue* q);
 void deQueue_tid(struct Queue* q, pthread_t tid);
 
 #endif

@@ -37,7 +37,7 @@ void enQueue(struct Queue* q, struct PCB pcb)
 }
 
 // Function to remove a key from given queue q
-void deQueue(struct Queue* q)
+struct PCB deQueue(struct Queue* q)
 {
     // If queue is empty, return NULL.
     if (q->front == NULL)
@@ -45,14 +45,17 @@ void deQueue(struct Queue* q)
 
     // Store previous front and move front one node ahead
     struct QNode* temp = q->front;
-
+    
     q->front = q->front->next;
 
     // If front becomes NULL, then change rear also as NULL
     if (q->front == NULL)
         q->rear = NULL;
 
+    struct PCB tempPCB = temp->pcb; 
     free(temp);
+
+    return tempPCB;
 }
 
 void deQueue_tid(struct Queue* q, pthread_t tid){

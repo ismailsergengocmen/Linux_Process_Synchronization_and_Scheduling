@@ -73,10 +73,29 @@ static void* process_generator(void* param) {
     }
 }
 
-void cpu_scheduler() {
+static void* cpu_scheduler(void* param) {
     
+    while(1){
+        sem_post(&S);
+        pthread_cond_wait(&scheduler, &lock);
+        if(ALG == "FCFS"){
+            struct PCB temp = deQueue(CPU.queue);
+            temp.state = "RUNNING";
+            CPU.pcb = &temp;  
+            pthread_cond_broadcast(&CPU.cv);
+        }
+
+        else if(ALG == "SJF"){
+
+        }
+
+        else {  // RR
+
+        }
+    }
 }
-void processThread(struct PCB* pcb){
+             
+static void* processThread(struct PCB* pcb){
 
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -99,18 +118,22 @@ void processThread(struct PCB* pcb){
     while(1){ 
         calculateNewCpuBurst(pcb); // Calculate next cpu burst
 
+        enQueue(CPU.queue, *pcb); // Added to ready queue  // TO DO => Scheduler  |  4 , 5  |
+        pcb->state = "READY";
+
+        sem_wait(&S);
+        pthread_cond_signal(&scheduler); // TO DO => semaphore
+        sem_post(&S);
+
         // CPU //
         while(pcb->tid != CPU.pcb->tid){
-            enQueue(CPU.queue, *pcb); // Added to ready queue  // TO DO => Scheduler
-            pcb->state = "READY";
             pthread_cond_wait(&CPU.cv, &lock); // Add itself to CPU.cv.ready queue and sleep
         }
 
-        deQueue_tid(CPU.queue,pcb->tid); // PCB dequeued from ready queue
-        pcb->state = "RUNNING";
-        CPU.pcb = pcb; // Put pcb to CPU
+        // deQueue_tid(CPU.queue,pcb->tid); // PCB dequeued from ready queue
+        // CPU.pcb = pcb; // Put pcb to CPU
 
-        // TO DO => Add RR check and change usleep time accordingly
+        // TO DO => Add RR check and change usleep time accordingly   | 3 |
         usleep(pcb->next_cpuburst_len * 1000);  // If it wakes, it means it's in CPU so it will usleep
         CPU.pcb = NULL; // CPU emptied
 
@@ -119,8 +142,8 @@ void processThread(struct PCB* pcb){
         int minInterval = p0;
         int midInterval = p0 + p1;
         
-        if(chance < minInterval){ // Terminate
-            enQueue(TERMINATED,*pcb); // PCB added to terminated queue    // TO DO => Scheduler
+        if(chance < minInterval){ // Terminate    
+            enQueue(TERMINATED,*pcb); // PCB added to terminated queue    // TO DO => Scheduler  |  1  |
             pcb->state = "TERMINATED";
             pthread_exit(0); // Thread ended
         }
@@ -136,7 +159,7 @@ void processThread(struct PCB* pcb){
             }
             else {
                 IO1.count += 1; // Increment IO1 ready queue waiters count 
-                enQueue(IO1.queue, *pcb);  // TO DO => Scheduler
+                enQueue(IO1.queue, *pcb);  // TO DO => Scheduler  |  2  |
                 pcb->state = "WAITING DEVICE1";
                 pthread_cond_wait(&IO1.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
                 deQueue_tid(IO1.queue, pcb->tid);
@@ -203,6 +226,8 @@ int main(int argc, char** argv) {
     MAXP = atoi(argv[13]);
     ALLP = atoi(argv[14]);
     OUTMODE = atoi(argv[15]);
+
+    sem_init(&S, 0, 0);
 
     // Process generator declaration
     pthread_t generator_tid;
