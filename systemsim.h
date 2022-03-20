@@ -19,6 +19,9 @@ int MAXP;
 int ALLP;
 int OUTMODE;
 
+int live_process_count = 0;
+int total_process_count = 0;
+
 struct Device CPU;
 struct Device IO1;
 struct Device IO2;
