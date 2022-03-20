@@ -4,11 +4,32 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <math.h>
+
+void calculateNewCpuBurst(struct PCB* pcb, char* burst_dist, int burstlen, int min_burst, int max_burst){
+    srand(time(NULL));
+    if(strcmp(burst_dist,"fixed") == 0){
+        pcb->next_cpuburst_len = burstlen;
+    }
+    else if(strcmp(burst_dist,"uniform") == 0){
+        pcb->next_cpuburst_len = (double) rand() / RAND_MAX * (max_burst - min_burst) + min_burst;
+    }
+    else{
+        double lambda = (double) (1.0 / burstlen);
+        double u = (double) rand() / RAND_MAX;
+        double x = ((-1) * log(u)) / lambda;
+
+        while(!(min_burst <= x && x <= max_burst)) {
+            u = (double) rand() / RAND_MAX;
+            x = ((-1) * log(u)) / lambda;
+        }
+        pcb->next_cpuburst_len = x;
+    }
+}
 
 static void* process_generator(void* param) {
     int process_count = 1;
     pthread_t tid;
-    pthread_attr_t attr;
 
     int count;
     if (ALLP < 10 && ALLP < MAXP) {
@@ -22,8 +43,7 @@ static void* process_generator(void* param) {
     }
 
     for (int i = 0; i < count; i++) {
-        //pthread_attr_init (&attr);
-        //pthread_create (&tid, &attr, process_generator, NULL); // BURAYI UPDATELE
+        pthread_create (&tid, NULL, process_generator, NULL); // BURAYI UPDATELE
         struct timeval start;
         gettimeofday(&start, NULL);
 
@@ -46,8 +66,7 @@ static void* process_generator(void* param) {
         if (random <= pg) {
             if (total_process_count < ALLP && live_process_count < MAXP) {
                 printf("CREATED, %f: \n", random);
-                //pthread_attr_init (&attr);
-                //pthread_create (&tid, &attr, process_generator, NULL); // BURAYI UPDATELE
+                pthread_create (&tid, NULL, process_generator, NULL); // BURAYI UPDATELE
                 struct timeval start;
                 gettimeofday(&start, NULL);
 
