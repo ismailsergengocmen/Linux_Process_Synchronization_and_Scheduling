@@ -1,14 +1,68 @@
 #include "systemsim.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdio.h>
 
 static void* process_generator(void* param) {
+    int process_count = 1;
     pthread_t tid;
     pthread_attr_t attr;
 
-    if (ALLP < 10) {
+    int count;
+    if (ALLP < 10 && ALLP < MAXP) {
+        count = ALLP;
+    } else if (ALLP < 10 && ALLP >= MAXP) {
+        count = MAXP;
+        } else if (ALLP >= 10) {
+        count = 10;
+    } else {
+        count = 0;
+    }
+
+    for (int i = 0; i < count; i++) {
         //pthread_attr_init (&attr);
-        //pthread_create (&tid, &attr, runner, argv[1]);
+        //pthread_create (&tid, &attr, process_generator, NULL); // BURAYI UPDATELE
+        struct timeval start;
+        gettimeofday(&start, NULL);
+
+        struct PCB* temp = (struct PCB*)malloc(sizeof(struct PCB));
+        temp->pid = process_count;
+        temp->tid = tid;
+        temp->state = 1;
+        temp->arrival_time = start.tv_usec * (0.001);
+        process_count++;
+        live_process_count++;
+        total_process_count++;
+    }
+
+    srand(time(NULL));
+
+    while (1) {
+        usleep(5000);
+        double random = (double)rand() / RAND_MAX;
+
+        if (random <= pg) {
+            if (total_process_count < ALLP && live_process_count < MAXP) {
+                printf("CREATED, %f: \n", random);
+                //pthread_attr_init (&attr);
+                //pthread_create (&tid, &attr, process_generator, NULL); // BURAYI UPDATELE
+                struct timeval start;
+                gettimeofday(&start, NULL);
+
+                struct PCB* temp = (struct PCB*)malloc(sizeof(struct PCB));
+                temp->pid = process_count;
+                temp->tid = tid;
+                temp->state = 1;
+                temp->arrival_time = start.tv_usec * (0.001);
+                process_count++;
+                live_process_count++;
+                total_process_count++;
+            } else if (total_process_count == ALLP) {
+                pthread_exit(0);
+            }
+        }
     }
 }
 
@@ -36,9 +90,9 @@ int main(int argc, char** argv) {
     ALLP = atoi(argv[14]);
     OUTMODE = atoi(argv[15]);
 
-    struct Queue* a = createQueue();
-
-
+    //pthread_t tid;
+    //int a = pthread_create (&tid, NULL, process_generator, NULL); // BURAYI UPDATELE
+    //pthread_join(tid, NULL);
 
     return 0;
 }
