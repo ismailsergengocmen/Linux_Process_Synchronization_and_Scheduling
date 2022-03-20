@@ -1,14 +1,26 @@
 #include "systemsim.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
-static void* process_generator(void* param) {
-    pthread_t tid;
-    pthread_attr_t attr;
+void calculateNewCpuBurst(struct PCB* pcb, char* burst_dist, int burstlen, int min_burst, int max_burst){
+    srand(time(NULL));
+    if(strcmp(burst_dist,"fixed") == 0){
+        pcb->next_cpuburst_len = burstlen;
+    }
+    else if(strcmp(burst_dist,"uniform") == 0){
+        pcb->next_cpuburst_len = (double) rand() / RAND_MAX * (max_burst - min_burst) + min_burst;
+    }
+    else{
+        double lambda = (double) (1.0 / burstlen);
+        double u = (double) rand() / RAND_MAX;
+        double x = ((-1) * log(u)) / lambda;
 
-    if (ALLP < 10) {
-        //pthread_attr_init (&attr);
-        //pthread_create (&tid, &attr, runner, argv[1]);
+        while(!(min_burst <= x && x <= max_burst)) {
+            u = (double) rand() / RAND_MAX;
+            x = ((-1) * log(u)) / lambda;
+        }
+        pcb->next_cpuburst_len = x;
     }
 }
 

@@ -30,5 +30,6 @@ pthread_cond_t scheduler;
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
 static void* process_thread(void* param);
+void calculateNewCpuBurst(struct PCB* pcb, char* burst_dist, int burstlen, int max_burst, int min_burst);
 
 #endif
