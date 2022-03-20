@@ -2,6 +2,7 @@
 #define SYSTEMSIM_H
 #include "shareddefs.h"
 
+
 char* ALG;
 int T1;
 int T2;
@@ -19,17 +20,23 @@ int MAXP;
 int ALLP;
 int OUTMODE;
 
+int live_process_count = 0;
+int total_process_count = 0;
+int process_count = 1;
+
 struct Device CPU;
 struct Device IO1;
 struct Device IO2;
 
-struct Queue TERMINATED;
+struct Queue* TERMINATED;
 
 pthread_cond_t scheduler;
+
+pthread_mutex_t lock;
 
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
 static void* process_thread(void* param);
-void calculateNewCpuBurst(struct PCB* pcb, char* burst_dist, int burstlen, int max_burst, int min_burst);
+void calculateNewCpuBurst(struct PCB* pcb);
 
 #endif

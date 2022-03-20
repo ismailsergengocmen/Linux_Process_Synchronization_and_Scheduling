@@ -12,9 +12,9 @@ struct Queue {
 struct PCB {
     int pid;
     pthread_t tid;
-    int state; // 1- READY, 2- RUNNING, 3-WAITING
+    char* state; // READY, RUNNING, WAITING, TERMINATED, USING DEVICEX
     long long next_cpuburst_len;
-    long long rem_cpuburt_len;
+    long long rem_cpuburst_len;
     long long num_cpuburst;
     long long time_spend_ready;
     int device1_io_count;
@@ -22,12 +22,13 @@ struct PCB {
     long long arrival_time;
     long long finish_time;
     long long total_exec_time;
+
 };
 
 struct Device {
-    struct PCB pcb;
+    struct PCB* pcb;
     pthread_cond_t cv;
-    struct Queue queue;
+    struct Queue* queue;
     int count;
 };
 
@@ -41,6 +42,7 @@ struct QNode* newNode(struct PCB pcb);
 struct Queue* createQueue();
 void enQueue(struct Queue* q, struct PCB pcb);
 void deQueue(struct Queue* q);
+void deQueue_tid(struct Queue* q, pthread_t tid);
 
 #endif
 

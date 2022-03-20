@@ -55,3 +55,29 @@ void deQueue(struct Queue* q)
     free(temp);
 }
 
+void deQueue_tid(struct Queue* q, pthread_t tid){
+
+    struct QNode* current = q->front;
+    struct QNode* prev = q->front;
+
+    // If front becomes NULL, then change rear also as NULL
+    if (q->front->pcb.tid == tid){
+        if(q->front == q->rear)
+            q->rear = NULL;
+        q->front = q->front->next;   
+    }
+
+    while(current != NULL){
+        if(current->pcb.tid == tid){
+            prev->next = current->next;
+            if(prev->next == NULL)
+                q->rear = prev;
+            free(current); 
+        }
+        else{
+            prev = current;
+            current = current->next;
+        }
+    } 
+}
+
