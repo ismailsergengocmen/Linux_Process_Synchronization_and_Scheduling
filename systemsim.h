@@ -37,7 +37,7 @@ int AWAKESTATUS = 0;
 
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
-static void* processThread(struct PCB* pcb);
+static void* processThread(void* param);
 void calculateNewCpuBurst(struct PCB* pcb);
 
 #endif

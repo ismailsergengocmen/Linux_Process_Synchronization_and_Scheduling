@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+#include <stdio.h>
 
 void calculateNewCpuBurst(struct PCB* pcb){
     srand(time(NULL));
@@ -31,10 +32,6 @@ void printInfo(struct PCB* pcb, char* text){
 
     gettimeofday(&currentTime, NULL);
     curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
-    
-    if( OUTMODE == 1 ){
-        printf();
-    }
 
     if( OUTMODE == 2 ){
         printf("%f %d %s", curTime, pcb->pid, pcb->state);
@@ -140,7 +137,8 @@ static void* cpu_scheduler(void* param) {
     }
 }
              
-static void* processThread(struct PCB* pcb){
+static void* processThread(void* param){
+    struct PCB* pcb = (struct PCB*) param;
 
     struct timeval start;
     struct timeval queueEnter;

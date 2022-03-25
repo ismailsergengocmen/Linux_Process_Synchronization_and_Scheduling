@@ -116,5 +116,14 @@ struct PCB* deQueue_min(struct Queue* q){
     return temp;
 }
 
+void printQ(struct Queue* q) {
+    struct QNode* curr = q->front;
+
+    printf("PRINTING\n");
+    while (curr != NULL) {
+        printf("%lld\n", curr->pcb.next_cpuburst_len);
+        curr = curr->next;
+    } 
+}
 
 

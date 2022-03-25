@@ -45,6 +45,7 @@ struct PCB deQueue(struct Queue* q);
 void deQueue_tid(struct Queue* q, pthread_t tid);
 struct PCB* deQueue_min(struct Queue* q);
 struct PCB* findMin(struct Queue* q);
+void printQ(struct Queue* q);
 
 #endif
 
