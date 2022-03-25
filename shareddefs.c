@@ -84,3 +84,37 @@ void deQueue_tid(struct Queue* q, pthread_t tid){
     } 
 }
 
+struct PCB* findMin(struct Queue* q){
+    struct QNode* current = q->front;
+    struct PCB* min = (struct PCB*)malloc(sizeof(struct PCB));
+    
+    if(q->front == NULL){
+        return;
+    }
+    
+    else if(q->front == q->rear){
+        return &q->front->pcb;
+    }
+
+    else{
+        *min = q->front->pcb;
+        while(current != NULL) {
+            if(current->pcb.next_cpuburst_len < min->next_cpuburst_len){
+                *min = current->pcb;
+            }
+            else{
+                current = current->next;
+            }
+        }
+        return min;
+    }
+}
+
+struct PCB* deQueue_min(struct Queue* q){
+    struct PCB* temp = findMin(q);
+    deQueue_tid(q,temp->tid);
+    return temp;
+}
+
+
+

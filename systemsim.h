@@ -6,8 +6,7 @@
 char* ALG;
 int T1;
 int T2;
-long long Q1;
-char* Q2;
+char* Q;
 char* burst_dist;
 long long burstlen ;
 long long min_burst;
@@ -19,6 +18,7 @@ double pg;
 int MAXP;
 int ALLP;
 int OUTMODE;
+
 
 int live_process_count = 0;
 int total_process_count = 0;
@@ -33,7 +33,7 @@ struct Queue* TERMINATED;
 pthread_cond_t scheduler;
 
 pthread_mutex_t lock;
-sem_t S;
+int AWAKESTATUS = 0;
 
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);

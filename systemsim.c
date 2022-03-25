@@ -76,35 +76,60 @@ static void* process_generator(void* param) {
 static void* cpu_scheduler(void* param) {
     
     while(1){
-        sem_post(&S);
-        pthread_cond_wait(&scheduler, &lock);
-        if(ALG == "FCFS"){
+
+        //LOCK-a
+        while(AWAKESTATUS == 0 && (CPU.pcb != NULL || ALG == "RR")){
+            pthread_cond_wait(&scheduler, &lock);
+        }
+        AWAKESTATUS = 0;
+        //UNLOCK-a
+        
+        if(ALG == "FCFS"){ 
             struct PCB temp = deQueue(CPU.queue);
             temp.state = "RUNNING";
-            CPU.pcb = &temp;  
+            temp.num_cpuburst += 1;
+            *CPU.pcb = temp;  
             pthread_cond_broadcast(&CPU.cv);
         }
 
         else if(ALG == "SJF"){
-
+            struct PCB* temp = deQueue_min(CPU.queue);
+            temp->state = "RUNNING";
+            temp->num_cpuburst += 1;
+            CPU.pcb = temp;  
+            pthread_cond_broadcast(&CPU.cv);
         }
 
-        else {  // RR
-
-        }
+        else{
+            if(CPU.pcb != NULL){
+                enQueue(CPU.queue, *CPU.pcb);
+                CPU.pcb->rem_cpuburst_len -= atoi(Q);
+                CPU.pcb = NULL;
+            }
+            struct PCB temp = deQueue(CPU.queue);
+            temp.state = "RUNNING";
+            temp.num_cpuburst += 1;
+            *CPU.pcb = temp;  
+            pthread_cond_broadcast(&CPU.cv);
+        } 
     }
 }
              
 static void* processThread(struct PCB* pcb){
 
     struct timeval start;
+    struct timeval queueEnter;
+    struct timeval queueLeave;
+    struct timeval terminationTime;
+    double ready_queue_wait_time;
+
     gettimeofday(&start, NULL);
 
     // Filling information 
     pcb->pid = process_count;
     pcb->tid = pthread_self();
-    pcb->arrival_time = start.tv_usec * (0.001);
-    pcb->rem_cpuburst_len = pcb->next_cpuburst_len;
+    pcb->arrival_time = start.tv_usec * (0.001) + start.tv_sec * (1000);
+    pcb->rem_cpuburst_len = 0;
     pcb->num_cpuburst = 0;
     pcb->time_spend_ready = 0;
     pcb->device1_io_count= 0;
@@ -115,103 +140,131 @@ static void* processThread(struct PCB* pcb){
     srand(time(NULL));
 
     // LIFE OF A THREAD //
-    while(1){ 
-        calculateNewCpuBurst(pcb); // Calculate next cpu burst
+    while(1){
+        if(ALG != "RR" || pcb->rem_cpuburst_len == 0) 
+            calculateNewCpuBurst(pcb); // Calculate next cpu burst
 
-        enQueue(CPU.queue, *pcb); // Added to ready queue  // TO DO => Scheduler  |  4 , 5  |
+        enQueue(CPU.queue, *pcb); // Added to ready queue  
         pcb->state = "READY";
 
-        sem_wait(&S);
-        pthread_cond_signal(&scheduler); // TO DO => semaphore
-        sem_post(&S);
+        // LOCK //
+        AWAKESTATUS = 1;
+        pthread_cond_signal(&scheduler);
+        // UNLOCK //
 
         // CPU //
+        gettimeofday(&queueEnter, NULL);
         while(pcb->tid != CPU.pcb->tid){
             pthread_cond_wait(&CPU.cv, &lock); // Add itself to CPU.cv.ready queue and sleep
         }
+        gettimeofday(&queueLeave, NULL);
+
+        ready_queue_wait_time = (queueLeave.tv_usec * 0.001 + queueLeave.tv_sec * 1000) - (queueEnter.tv_usec * 0.001 + queueEnter.tv_sec * 1000);
+        pcb->time_spend_ready += ready_queue_wait_time;
 
         // deQueue_tid(CPU.queue,pcb->tid); // PCB dequeued from ready queue
         // CPU.pcb = pcb; // Put pcb to CPU
 
         // TO DO => Add RR check and change usleep time accordingly   | 3 |
-        usleep(pcb->next_cpuburst_len * 1000);  // If it wakes, it means it's in CPU so it will usleep
-        CPU.pcb = NULL; // CPU emptied
-
-        int chance = (double) rand() / RAND_MAX;
-
-        int minInterval = p0;
-        int midInterval = p0 + p1;
-        
-        if(chance < minInterval){ // Terminate    
-            enQueue(TERMINATED,*pcb); // PCB added to terminated queue    // TO DO => Scheduler  |  1  |
-            pcb->state = "TERMINATED";
-            pthread_exit(0); // Thread ended
-        }
-
-        else if(minInterval < chance && chance < midInterval) { //IO1
-            if(IO1.count == 0 && IO1.pcb == NULL){ // If IO1 is empty and there is no one waiting
-                pcb->state = "USING DEVICE1";
-                IO1.pcb = pcb; // IO1 has chosen thread
-                usleep(T1 * 1000); // Operates on I01 for t1 milisecond
-                pcb->device1_io_count += 1;
-                pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
-                IO1.pcb = NULL;
+        int sleeptime;
+        if(ALG == "RR"){
+            if(pcb->rem_cpuburst_len < atoi(Q)){
+                sleeptime = pcb->rem_cpuburst_len;
             }
-            else {
-                IO1.count += 1; // Increment IO1 ready queue waiters count 
-                enQueue(IO1.queue, *pcb);  // TO DO => Scheduler  |  2  |
-                pcb->state = "WAITING DEVICE1";
-                pthread_cond_wait(&IO1.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
-                deQueue_tid(IO1.queue, pcb->tid);
-
-                pcb->state = "USING DEVICE1"; 
-                IO1.count -= 1; // Lower IO1 ready queue waiters count 
-                IO1.pcb = pcb; // IO1 has chosen thread
-                usleep(T1 * 1000); // Operates on I01 for t1 milisecond
-                pcb->device1_io_count += 1;
-                pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
-                IO1.pcb = NULL; // I01 is empty now
+            else{
+                sleeptime = atoi(Q);
             }
         }
+        else{
+            sleeptime = pcb->next_cpuburst_len;
+        }
 
-        else{ // IO2
-            if(IO2.count == 0 && IO2.pcb == NULL){ // If IO1 is empty and there is no one waiting
-                pcb->state = "USING DEVICE2";
-                IO2.pcb = pcb; // IO1 has chosen thread 
-                usleep(T2 * 1000); // Operates on I01 for t1 milisecond
-                pcb->device2_io_count += 1;
-                pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
-                IO2.pcb = NULL;
+        usleep(sleeptime * 1000);  // If it wakes, it means it's in CPU so it will usleep
+        CPU.pcb->total_exec_time += sleeptime;
+        CPU.pcb->rem_cpuburst_len -= sleeptime;
+
+        if(ALG != "RR"){
+            CPU.pcb = NULL; // CPU emptied
+        }
+
+        // LOCK //
+        AWAKESTATUS = 1;
+        pthread_cond_signal(&scheduler);
+        // UNLOCK //
+
+        if(pcb->rem_cpuburst_len == 0){
+            int chance = (double) rand() / RAND_MAX;
+
+            int minInterval = p0;
+            int midInterval = p0 + p1;
+            
+            if(chance < minInterval){ // Terminate    
+                gettimeofday(&terminationTime, NULL);
+                double endTime = (terminationTime.tv_usec * 0.001 + terminationTime.tv_sec * 1000);
+                pcb-> finish_time = endTime;
+                enQueue(TERMINATED,*pcb); // PCB added to terminated queue   
+                pcb->state = "TERMINATED";
+                pthread_exit(0); // Thread ended
             }
-            else {
-                IO2.count += 1; // Increment IO2 ready queue waiters count 
-                enQueue(IO2.queue, *pcb);   // TO DO => Scheduler
-                pcb->state = "WAITING DEVICE2";
-                pthread_cond_wait(&IO2.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
-                deQueue_tid(IO2.queue, pcb->tid);  // TO DO => Scheduler (Optional)
-                 
-                pcb->state = "USING DEVICE2"; 
-                IO2.count -= 1; // Lower IO2 ready queue waiters count 
-                IO2.pcb = pcb; // IO1 has chosen thread 
-                usleep(T2 * 1000); // Operates on I02 for t2 milisecond
-                pcb->device2_io_count += 1;
-                pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
-                IO2.pcb = NULL; // I01 is empty now
+
+            else if(minInterval < chance && chance < midInterval) { //IO1
+                if(IO1.count == 0 && IO1.pcb == NULL){ // If IO1 is empty and there is no one waiting
+                    pcb->state = "USING DEVICE1";
+                    IO1.pcb = pcb; // IO1 has chosen thread
+                    usleep(T1 * 1000); // Operates on I01 for t1 milisecond
+                    pcb->device1_io_count += 1;
+                    pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
+                    IO1.pcb = NULL;
+                }
+                else {
+                    IO1.count += 1; // Increment IO1 ready queue waiters count 
+                    enQueue(IO1.queue, *pcb);  
+                    pcb->state = "WAITING DEVICE1";
+                    pthread_cond_wait(&IO1.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
+                    deQueue_tid(IO1.queue, pcb->tid);
+
+                    pcb->state = "USING DEVICE1"; 
+                    IO1.count -= 1; // Lower IO1 ready queue waiters count 
+                    IO1.pcb = pcb; // IO1 has chosen thread
+                    usleep(T1 * 1000); // Operates on I01 for t1 milisecond
+                    pcb->device1_io_count += 1;
+                    pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
+                    IO1.pcb = NULL; // I01 is empty now
+                }
+            }
+
+            else{ // IO2
+                if(IO2.count == 0 && IO2.pcb == NULL){ // If IO1 is empty and there is no one waiting
+                    pcb->state = "USING DEVICE2";
+                    IO2.pcb = pcb; // IO1 has chosen thread 
+                    usleep(T2 * 1000); // Operates on I01 for t1 milisecond
+                    pcb->device2_io_count += 1;
+                    pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
+                    IO2.pcb = NULL;
+                }
+                else {
+                    IO2.count += 1; // Increment IO2 ready queue waiters count 
+                    enQueue(IO2.queue, *pcb);   
+                    pcb->state = "WAITING DEVICE2";
+                    pthread_cond_wait(&IO2.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
+                    deQueue_tid(IO2.queue, pcb->tid); 
+                    pcb->state = "USING DEVICE2"; 
+                    IO2.count -= 1; // Lower IO2 ready queue waiters count 
+                    IO2.pcb = pcb; // IO1 has chosen thread 
+                    usleep(T2 * 1000); // Operates on I02 for t2 milisecond
+                    pcb->device2_io_count += 1;
+                    pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
+                    IO2.pcb = NULL; // I01 is empty now
+                }
             }
         }
     }
-
 }
 
 int main(int argc, char** argv) {
     ALG = argv[1];
 
-    if(strcmp(ALG, "RR") == 0){
-        Q1 = strtoll(argv[2], NULL, 10);
-    }
-    else {
-        Q2 = argv[2];
-    }
+    Q = argv[2];
   
     T1 = atoi(argv[3]);
     T2 = atoi(argv[4]);
@@ -227,7 +280,6 @@ int main(int argc, char** argv) {
     ALLP = atoi(argv[14]);
     OUTMODE = atoi(argv[15]);
 
-    sem_init(&S, 0, 0);
 
     // Process generator declaration
     pthread_t generator_tid;

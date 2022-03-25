@@ -19,7 +19,7 @@ struct PCB {
     long long time_spend_ready;
     int device1_io_count;
     int device2_io_count;
-    long long arrival_time;
+    double arrival_time;
     long long finish_time;
     long long total_exec_time;
 
@@ -43,6 +43,8 @@ struct Queue* createQueue();
 void enQueue(struct Queue* q, struct PCB pcb);
 struct PCB deQueue(struct Queue* q);
 void deQueue_tid(struct Queue* q, pthread_t tid);
+struct PCB* deQueue_min(struct Queue* q);
+struct PCB* findMin(struct Queue* q);
 
 #endif
 
