@@ -25,6 +25,27 @@ void calculateNewCpuBurst(struct PCB* pcb){
     }
 }
 
+void printInfo(struct PCB* pcb, char* text){
+    struct timeval currentTime;
+    double curTime;
+
+    gettimeofday(&currentTime, NULL);
+    curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
+    
+    if( OUTMODE == 1 ){
+        printf();
+    }
+
+    if( OUTMODE == 2 ){
+        printf("%f %d %s", curTime, pcb->pid, pcb->state);
+    }
+
+    if( OUTMODE == 3 ){
+        printf("%f %d %s", curTime, pcb->pid, text);
+    }
+
+}
+
 static void* process_generator(void* param) {
   
     pthread_t tid;
@@ -45,8 +66,10 @@ static void* process_generator(void* param) {
 
     for (int i = 0; i < count; i++) {
         struct PCB* pcb = (struct PCB*)malloc(sizeof(struct PCB));
-        pthread_create (&tid, NULL, processThread, pcb); 
-        
+        pcb->pid = process_count;
+        pthread_create (&tid, NULL, processThread, pcb);
+
+        printInfo(pcb,"NEW PROCESS CREATED");
         process_count++;
         live_process_count++;
         total_process_count++;
@@ -61,7 +84,9 @@ static void* process_generator(void* param) {
         if (random <= pg) {
             if (total_process_count < ALLP && live_process_count < MAXP) {
                 struct PCB* pcb = (struct PCB*)malloc(sizeof(struct PCB));
-                pthread_create (&tid, NULL, processThread, pcb); 
+                pcb->pid = process_count;
+                pthread_create (&tid, NULL, processThread, pcb);
+                printInfo(pcb,"NEW PROCESS CREATED");
 
                 process_count++;
                 live_process_count++;
@@ -121,12 +146,13 @@ static void* processThread(struct PCB* pcb){
     struct timeval queueEnter;
     struct timeval queueLeave;
     struct timeval terminationTime;
+    struct timeval currentTime;
     double ready_queue_wait_time;
+    double curTime;
 
     gettimeofday(&start, NULL);
 
     // Filling information 
-    pcb->pid = process_count;
     pcb->tid = pthread_self();
     pcb->arrival_time = start.tv_usec * (0.001) + start.tv_sec * (1000);
     pcb->rem_cpuburst_len = 0;
@@ -162,10 +188,7 @@ static void* processThread(struct PCB* pcb){
         ready_queue_wait_time = (queueLeave.tv_usec * 0.001 + queueLeave.tv_sec * 1000) - (queueEnter.tv_usec * 0.001 + queueEnter.tv_sec * 1000);
         pcb->time_spend_ready += ready_queue_wait_time;
 
-        // deQueue_tid(CPU.queue,pcb->tid); // PCB dequeued from ready queue
-        // CPU.pcb = pcb; // Put pcb to CPU
-
-        // TO DO => Add RR check and change usleep time accordingly   | 3 |
+        // Add RR check and change usleep time accordingly   
         int sleeptime;
         if(ALG == "RR"){
             if(pcb->rem_cpuburst_len < atoi(Q)){
@@ -179,6 +202,11 @@ static void* processThread(struct PCB* pcb){
             sleeptime = pcb->next_cpuburst_len;
         }
 
+        gettimeofday(&currentTime, NULL);
+        curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
+        if(OUTMODE == 2){
+            printf("%f %d %s", curTime, pcb->pid, pcb->state);
+        }
         usleep(sleeptime * 1000);  // If it wakes, it means it's in CPU so it will usleep
         CPU.pcb->total_exec_time += sleeptime;
         CPU.pcb->rem_cpuburst_len -= sleeptime;
@@ -211,6 +239,11 @@ static void* processThread(struct PCB* pcb){
                 if(IO1.count == 0 && IO1.pcb == NULL){ // If IO1 is empty and there is no one waiting
                     pcb->state = "USING DEVICE1";
                     IO1.pcb = pcb; // IO1 has chosen thread
+
+                    gettimeofday(&currentTime, NULL);
+                    curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
+                    printInfo(pcb,"NEW PROCESS CREATED");
+
                     usleep(T1 * 1000); // Operates on I01 for t1 milisecond
                     pcb->device1_io_count += 1;
                     pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
@@ -226,6 +259,8 @@ static void* processThread(struct PCB* pcb){
                     pcb->state = "USING DEVICE1"; 
                     IO1.count -= 1; // Lower IO1 ready queue waiters count 
                     IO1.pcb = pcb; // IO1 has chosen thread
+                    printInfo(pcb,"NEW PROCESS CREATED");
+
                     usleep(T1 * 1000); // Operates on I01 for t1 milisecond
                     pcb->device1_io_count += 1;
                     pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
@@ -237,6 +272,13 @@ static void* processThread(struct PCB* pcb){
                 if(IO2.count == 0 && IO2.pcb == NULL){ // If IO1 is empty and there is no one waiting
                     pcb->state = "USING DEVICE2";
                     IO2.pcb = pcb; // IO1 has chosen thread 
+
+                    gettimeofday(&currentTime, NULL);
+                    curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
+                    if(OUTMODE == 2){
+                        printf("%f %d %s", curTime, pcb->pid, pcb->state);
+                    }
+
                     usleep(T2 * 1000); // Operates on I01 for t1 milisecond
                     pcb->device2_io_count += 1;
                     pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
@@ -251,6 +293,13 @@ static void* processThread(struct PCB* pcb){
                     pcb->state = "USING DEVICE2"; 
                     IO2.count -= 1; // Lower IO2 ready queue waiters count 
                     IO2.pcb = pcb; // IO1 has chosen thread 
+
+                    gettimeofday(&currentTime, NULL);
+                    curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
+                    if(OUTMODE == 2){
+                        printf("%f %d %s", curTime, pcb->pid, pcb->state);
+                    }
+
                     usleep(T2 * 1000); // Operates on I02 for t2 milisecond
                     pcb->device2_io_count += 1;
                     pthread_cond_signal(&IO2.cv); // wakes random thread from I01.cv's ready queue
