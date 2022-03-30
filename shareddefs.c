@@ -39,10 +39,6 @@ void enQueue(struct Queue* q, struct PCB pcb)
 // Function to remove a key from given queue q
 struct PCB deQueue(struct Queue* q)
 {
-    // If queue is empty, return NULL.
-    if (q->front == NULL)
-        return NULL;
-
     // Store previous front and move front one node ahead
     struct QNode* temp = q->front;
     

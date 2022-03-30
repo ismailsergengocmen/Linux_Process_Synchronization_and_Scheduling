@@ -4,6 +4,8 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 void calculateNewCpuBurst(struct PCB* pcb){
     srand(time(NULL));
@@ -68,6 +70,7 @@ static void* process_generator(void* param) {
         if(OUTMODE == 3){
             printInfo(pcb,"NEW PROCESS CREATED");
         }
+
         process_count++;
         live_process_count++;
         total_process_count++;
@@ -102,18 +105,28 @@ static void* process_generator(void* param) {
     // We need to wait for all threads
     for(int i = 0; i < process_count; i++)
         pthread_join(tids[i], NULL);
+
+    pthread_exit(NULL);
+    return NULL;    
 }
 
 static void* cpu_scheduler(void* param) {
-    
+    printf("CS => First line\n");
     while(1){
-
+        printf("CS => Before while\n");
         //LOCK-a
-        while(AWAKESTATUS == 0 && CPU.count == 0 && (CPU.isEmpty == 0 || (strcmp(ALG, "RR") == 0))){
+        /**
+         * If ALG is not RR and CPU is not empty(which is the case mostly in RR), scheduler should sleep
+         * But if it is RR, it should not sleep even if CPU is full
+         * (AWAKESTATUS == 0 && CPU.count == 0 && (CPU.isEmpty == 0 || (strcmp(ALG, "RR") == 0))
+         */ 
+        while(AWAKESTATUS == 0 || CPU.count == 0 || CPU.isEmpty == 0 || !(CPU.isEmpty == 1 && (strcmp(ALG, "RR") == 0))){
+            printf("CS => In while\n");
             pthread_cond_wait(&scheduler, &lock);
         }
         AWAKESTATUS = 0;
         //UNLOCK-a
+        printf("CS => Awaken\n");
 
         if(strcmp(ALG, "FCFS") == 0){
             struct PCB temp = deQueue(CPU.queue);
@@ -132,7 +145,7 @@ static void* cpu_scheduler(void* param) {
             struct PCB* temp = deQueue_min(CPU.queue);
             CPU.count -= 1;
             if(OUTMODE == 3){
-                printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
+                printInfo(temp,"PROCESS IS SELECTED FOR CPU");
             }
             temp->state = "RUNNING";
             temp->num_cpuburst += 1;
@@ -175,9 +188,12 @@ static void* cpu_scheduler(void* param) {
             pthread_cond_broadcast(&CPU.cv);
         }
     }
+    pthread_exit(NULL);
+    return NULL;
 }
              
 static void* processThread(void* param){
+    printf("PT => First line\n");
     // points to heap
     struct PCB* pcb = (struct PCB*) param;
 
@@ -187,7 +203,6 @@ static void* processThread(void* param){
     struct timeval terminationTime;
     struct timeval currentTime;
     double ready_queue_wait_time;
-    double curTime;
 
     gettimeofday(&start, NULL);
 
@@ -205,22 +220,30 @@ static void* processThread(void* param){
     srand(time(NULL));
     
     // LIFE OF A THREAD //
+    printf("PT => Start of infinite while\n");
+
     while(1){
-        if(strcmp(ALG, "RR") != 0 || pcb->rem_cpuburst_len == 0) 
+        printf("PT => Calculate new cpu burst\n");
+        if(strcmp(ALG,"RR") != 0 || pcb->rem_cpuburst_len == 0) 
             calculateNewCpuBurst(pcb); // Calculate next cpu burst
+        
+        printf("PT => First enqueue\n");
+        if(strcmp(ALG,"RR") != 0 || ( strcmp(ALG,"RR") == 0 && CPU.isEmpty == 1 )) {
+            enQueue(CPU.queue, *pcb); // Added to ready queue
+            CPU.count += 1;
+            pcb->state = "READY";
 
-        enQueue(CPU.queue, *pcb); // Added to ready queue
-        CPU.count += 1;
-        pcb->state = "READY";
+            if(OUTMODE == 3){
+                printInfo(pcb,"ADDED TO READY QUEUE");
+            }
+        }    
 
-        if(OUTMODE == 3){
-            printInfo(pcb,"ADDED TO READY QUEUE");
-        } 
-
+        printf("PT => Before signal\n");
         // LOCK //
         AWAKESTATUS = 1;
         pthread_cond_signal(&scheduler);
         // UNLOCK //
+        printf("PT => First enqueue\n");
 
         // CPU //
         gettimeofday(&queueEnter, NULL);
@@ -285,7 +308,6 @@ static void* processThread(void* param){
                     IO1.pcb = pcb; // IO1 has chosen thread
                     
                     gettimeofday(&currentTime, NULL);
-                    curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
                     printInfo(pcb,"USING DEVICE1");
 
                     usleep(T1 * 1000); // Operates on I01 for t1 milisecond
@@ -354,6 +376,7 @@ static void* processThread(void* param){
             }
         }
     }
+    return NULL;
 }
 
 int main(int argc, char** argv) {
@@ -409,7 +432,7 @@ int main(int argc, char** argv) {
     pthread_cond_init(&IO2.cv, NULL);
 
     // Process generator creation
-    // pthread_create(&generator_tid, NULL, process_generator, NULL);
+    pthread_create(&generator_tid, NULL, process_generator, NULL);
     pthread_create(&scheduler_tid, NULL, cpu_scheduler, NULL);
 
     pthread_join(generator_tid, NULL);
