@@ -35,6 +35,8 @@ pthread_cond_t scheduler;
 pthread_mutex_t lock;
 int AWAKESTATUS = 0;
 
+double simulation_start_time;
+
 static void* process_generator(void* param);
 static void* cpu_scheduler(void* param);
 static void* processThread(void* param);
