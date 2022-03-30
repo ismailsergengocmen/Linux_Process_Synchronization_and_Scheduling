@@ -19,7 +19,6 @@ int MAXP;
 int ALLP;
 int OUTMODE;
 
-
 int live_process_count = 0;
 int total_process_count = 0;
 int process_count = 1;
@@ -32,7 +31,12 @@ struct Queue* TERMINATED;
 
 pthread_cond_t scheduler;
 
-pthread_mutex_t lock;
+pthread_mutex_t countLock;
+pthread_mutex_t schedulerLock;
+pthread_mutex_t CPULock;
+pthread_mutex_t IO1Lock;
+pthread_mutex_t IO2Lock;
+
 int AWAKESTATUS = 0;
 
 double simulation_start_time;
