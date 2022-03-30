@@ -109,14 +109,15 @@ static void* cpu_scheduler(void* param) {
     while(1){
 
         //LOCK-a
-        while(AWAKESTATUS == 0 && (CPU.isEmpty == 0 || (strcmp(ALG, "RR") == 0))){
+        while(AWAKESTATUS == 0 && CPU.count == 0 && (CPU.isEmpty == 0 || (strcmp(ALG, "RR") == 0))){
             pthread_cond_wait(&scheduler, &lock);
         }
         AWAKESTATUS = 0;
         //UNLOCK-a
 
-        if(strcmp(ALG, "FCFS") == 0){ 
+        if(strcmp(ALG, "FCFS") == 0){
             struct PCB temp = deQueue(CPU.queue);
+            CPU.count -= 1;
             temp.state = "RUNNING";
             if(OUTMODE == 3){
                 printInfo(CPU.pcb,"PROCESS SELECTED FOR CPU");
@@ -129,6 +130,7 @@ static void* cpu_scheduler(void* param) {
 
         else if(strcmp(ALG, "SJF") == 0){
             struct PCB* temp = deQueue_min(CPU.queue);
+            CPU.count -= 1;
             if(OUTMODE == 3){
                 printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
             }
@@ -151,11 +153,13 @@ static void* cpu_scheduler(void* param) {
                 }
 
                 enQueue(CPU.queue, *CPU.pcb);
+                CPU.count += 1;
                 CPU.pcb->rem_cpuburst_len -= atoi(Q);
                 CPU.isEmpty = 1;
             }
 
             struct PCB temp = deQueue(CPU.queue);
+            CPU.count -= 1;
             if(OUTMODE == 3){
                 printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
             }
@@ -205,9 +209,10 @@ static void* processThread(void* param){
         if(strcmp(ALG, "RR") != 0 || pcb->rem_cpuburst_len == 0) 
             calculateNewCpuBurst(pcb); // Calculate next cpu burst
 
-        enQueue(CPU.queue, *pcb); // Added to ready queue  
+        enQueue(CPU.queue, *pcb); // Added to ready queue
+        CPU.count += 1;
         pcb->state = "READY";
-        
+
         if(OUTMODE == 3){
             printInfo(pcb,"ADDED TO READY QUEUE");
         } 

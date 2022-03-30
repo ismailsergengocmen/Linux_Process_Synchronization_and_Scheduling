@@ -41,7 +41,7 @@ struct PCB deQueue(struct Queue* q)
 {
     // If queue is empty, return NULL.
     if (q->front == NULL)
-        return;
+        return NULL;
 
     // Store previous front and move front one node ahead
     struct QNode* temp = q->front;
@@ -89,7 +89,7 @@ struct PCB* findMin(struct Queue* q){
     struct PCB* min = (struct PCB*)malloc(sizeof(struct PCB));
     
     if(q->front == NULL){
-        return;
+        return NULL;
     }
     
     else if(q->front == q->rear){
