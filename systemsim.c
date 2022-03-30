@@ -64,19 +64,21 @@ static void* process_generator(void* param) {
     
     for (int i = 0; i < count; i++) {
         struct PCB* pcb = (struct PCB*)malloc(sizeof(struct PCB));
-        // TODO COUNT LOCK
+
+        pthread_mutex_lock(&countLock);
         pcb->pid = total_process_count + 1;
-        // TODO COUNT UNLOCK
+        pthread_mutex_unlock(&countLock);
+
         pthread_create (&tids[i], NULL, processThread, pcb);
 
         if(OUTMODE == 3){
             printInfo(pcb,"NEW PROCESS CREATED");
         }
 
-        // TODO COUNT LOCK
+        pthread_mutex_lock(&countLock);
         live_process_count++;
         total_process_count++;
-        // TODO COUNT UNLOCK
+        pthread_mutex_unlock(&countLock);
     }
 
     srand(time(NULL));
@@ -87,7 +89,8 @@ static void* process_generator(void* param) {
             double random = (double)rand() / RAND_MAX;
 
             if (random <= pg) {
-                // TODO COUNT LOCK
+
+                pthread_mutex_lock(&countLock);
                 if (total_process_count < ALLP && live_process_count < MAXP) {
                     struct PCB* pcb = (struct PCB*)malloc(sizeof(struct PCB));
                     pcb->pid = total_process_count + 1;
@@ -106,16 +109,18 @@ static void* process_generator(void* param) {
                     printf("PT => Exit\n");
                     pthread_exit(0);
                 }
-                // TODO COUNT UNLOCK
+                pthread_mutex_unlock(&countLock);
             }
         }
     }
-    // TODO COUNT LOCK
+    
+    pthread_mutex_lock(&countLock);
     // We need to wait for all threads
     for(int i = 0; i < total_process_count; i++){
         pthread_join(tids[i], NULL);
     }
-    // TODO COUNT UNLOCK
+    pthread_mutex_unlock(&countLock);
+
     printf("PG => Exit\n");
     pthread_exit(NULL);
     return NULL;    
@@ -132,78 +137,90 @@ static void* cpu_scheduler(void* param) {
          * But if it is RR, it should not sleep even if CPU is full
          * (AWAKESTATUS == 0 && CPU.count == 0 && (CPU.isEmpty == 0 || (strcmp(ALG, "RR") == 0))
          */
-        // TODO COUNT LOCK
+
+        pthread_mutex_lock(&countLock);
         if (live_process_count == 0 && total_process_count >= ALLP) {
                 printf("CS => EXIT-0\n");
                 pthread_exit(0);
         } 
-        // TODO COUNT UNLOCK
+        pthread_mutex_unlock(&countLock);
 
-        // ! CPU LOCK
+        pthread_mutex_lock(&CPULock);
         while(AWAKESTATUS == 0 || CPU.count == 0 || CPU.isEmpty == 0){
             // printf("Live: %d - Total:%d\n", live_process_count, total_process_count);
             // If there is no process in CPU and there is no one in ready queue
-            // TODO COUNT LOCK
+
+            pthread_mutex_lock(&countLock);
             if (live_process_count == 0 && total_process_count >= ALLP) {
                 printf("CS => EXIT-1\n");
                 pthread_exit(0);
             }
-            // TODO COUNT UNLOCK
+            pthread_mutex_unlock(&countLock);
             //printf("CS => Sleeping\n");
 
-            // ? Scheduler LOCK
-            pthread_cond_wait(&scheduler, &lock);
-            // ? Scheduler UNLOCK
+            pthread_mutex_lock(&schedulerLock);
+            pthread_cond_wait(&scheduler, &schedulerLock);
+            pthread_mutex_unlock(&schedulerLock);
 
         }
-        // ! CPU UNLOCK
+        pthread_mutex_unlock(&CPULock);
 
         AWAKESTATUS = 0;
         //UNLOCK-a
         //printf("CS => Awaken\n");
 
         if(strcmp(ALG, "FCFS") == 0){
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             struct PCB temp = deQueue(CPU.queue);
             CPU.count -= 1;
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
             temp.state = "RUNNING";
             if(OUTMODE == 3){
                 printInfo(CPU.pcb,"PROCESS SELECTED FOR CPU");
             }
             temp.num_cpuburst += 1;
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
             *CPU.pcb = temp;
             //printf("CS => CPU FILLED\n"); 
             pthread_cond_broadcast(&CPU.cv);
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
         }
 
         else if(strcmp(ALG, "SJF") == 0){
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             struct PCB* temp = deQueue_min(CPU.queue);
             CPU.count -= 1;
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
             if(OUTMODE == 3){
                 printInfo(temp,"PROCESS IS SELECTED FOR CPU");
             }
             temp->state = "RUNNING";
             temp->num_cpuburst += 1;
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
             CPU.pcb = temp;
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
             if(OUTMODE == 3){
                 printInfo(CPU.pcb,"PROCESS IS RUNNING IN CPU");
             }
-            // ! CPU LOCK  
+
+            pthread_mutex_lock(&CPULock);
             pthread_cond_broadcast(&CPU.cv);
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
         }
 
         else{
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             if(CPU.isEmpty == 0){
                 CPU.pcb->state = "READY";
                 if(OUTMODE == 3){
@@ -219,23 +236,24 @@ static void* cpu_scheduler(void* param) {
 
             struct PCB temp = deQueue(CPU.queue);
             CPU.count -= 1;
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
             if(OUTMODE == 3){
                 printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
             }
 
             temp.state = "RUNNING";
-            
             temp.num_cpuburst += 1;
 
-            // ! CPU LOCK
+            pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
             *CPU.pcb = temp;
             if(OUTMODE == 3){
                 printInfo(CPU.pcb,"PROCESS IS RUNNING IN CPU");
             }
             pthread_cond_broadcast(&CPU.cv);
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
         }
     }
     printf("CS => EXIT-2\n");
@@ -275,7 +293,7 @@ static void* processThread(void* param){
         if(strcmp(ALG,"RR") != 0 || pcb->rem_cpuburst_len == 0) 
             calculateNewCpuBurst(pcb); // Calculate next cpu burst
         
-        // ! CPU LOCK
+        pthread_mutex_lock(&CPULock);
         if(strcmp(ALG,"RR") != 0 || ( strcmp(ALG,"RR") == 0 && CPU.isEmpty == 1 )) {
             enQueue(CPU.queue, *pcb); // Added to ready queue
             CPU.count += 1;
@@ -285,20 +303,20 @@ static void* processThread(void* param){
                 printInfo(pcb,"ADDED TO READY QUEUE");
             }
         }    
-         // ! CPU UNLOCK
+        pthread_mutex_unlock(&CPULock);
 
-        // ? Scheduler LOCK
+        pthread_mutex_lock(&schedulerLock);
         AWAKESTATUS = 1;
         pthread_cond_signal(&scheduler);
-        // ? Scheduler UNLOCK 
+        pthread_mutex_unlock(&schedulerLock);
 
-         // ! CPU LOCK
+        pthread_mutex_lock(&CPULock);
         gettimeofday(&queueEnter, NULL);
         while(pcb->tid != CPU.pcb->tid){
-            pthread_cond_wait(&CPU.cv, &lock); // Add itself to CPU.cv.ready queue and sleep
+            pthread_cond_wait(&CPU.cv, &CPULock); // Add itself to CPU.cv.ready queue and sleep
         }
         gettimeofday(&queueLeave, NULL);
-        // ! CPU UNLOCK
+        pthread_mutex_unlock(&CPULock);
 
         ready_queue_wait_time = (queueLeave.tv_usec * 0.001 + queueLeave.tv_sec * 1000) - (queueEnter.tv_usec * 0.001 + queueEnter.tv_sec * 1000);
         pcb->time_spend_ready += ready_queue_wait_time;
@@ -320,21 +338,23 @@ static void* processThread(void* param){
         printInfo(pcb, NULL);
         usleep(sleeptime * 1000);  // If it wakes, it means it's in CPU so it will usleep
         
-        // ! CPU LOCK
+        pthread_mutex_lock(&CPULock);
         CPU.pcb->total_exec_time += sleeptime;
         CPU.pcb->rem_cpuburst_len -= sleeptime;
-        // ! CPU UNLOCK
+        pthread_mutex_unlock(&CPULock);
 
         if(strcmp(ALG, "RR") != 0){
-            // ! CPU LOCK
+
+            pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 1;
-            // ! CPU UNLOCK
+            pthread_mutex_unlock(&CPULock);
+
         }
 
-        // ? Scheduler LOCK
+        pthread_mutex_lock(&schedulerLock);
         AWAKESTATUS = 1;
         pthread_cond_signal(&scheduler);
-        // ? Scheduler UNLOCK
+        pthread_mutex_unlock(&schedulerLock);
 
         if(pcb->rem_cpuburst_len == 0){
             double chance = (double) rand() / RAND_MAX;
@@ -352,17 +372,21 @@ static void* processThread(void* param){
                 if(OUTMODE == 3){
                     printInfo(pcb,"PROCESS TERMINATED");
                 }
-                // TODO COUNT LOCK
+
+                pthread_mutex_lock(&countLock);
                 live_process_count--;
-                // TODO COUNT UNLOCK
-                // ? Scheduler LOCK
+                pthread_mutex_unlock(&countLock);
+
+                pthread_mutex_lock(&schedulerLock);
                 pthread_cond_signal(&scheduler);
-                // ? Scheduler UNLOCK
+                pthread_mutex_unlock(&schedulerLock);
+
                 pthread_exit(0); // Thread ended
             }
 
             else if(minInterval < chance && chance < midInterval) { //IO1
-                //* IO1 LOCK
+                
+                pthread_mutex_lock(&IO1Lock);
                 if(IO1.count == 0 && IO1.isEmpty == 1){ // If IO1 is empty and there is no one waiting
                     pcb->state = "USING DEVICE1";
                     IO1.isEmpty = 0;
@@ -384,7 +408,7 @@ static void* processThread(void* param){
                         printInfo(pcb,"PROCESS ADDED TO DEVICE 1 QUEUE");
                     }
 
-                    pthread_cond_wait(&IO1.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
+                    pthread_cond_wait(&IO1.cv, &IO1Lock); // Thread put in IO1 ready queue(waiting queue)
                     deQueue_tid(IO1.queue, pcb->tid);
 
                     pcb->state = "USING DEVICE1"; 
@@ -398,11 +422,11 @@ static void* processThread(void* param){
                     pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
                     IO1.isEmpty = 1; // I01 is empty now
                 }
-                //* IO1 UNLOCK
+                pthread_mutex_unlock(&IO1Lock);
             }
 
             else{ // IO2
-                //* IO2 LOCK
+                pthread_mutex_lock(&IO2Lock);
                 if(IO2.count == 0 && IO2.isEmpty == 1){ // If IO2 is empty and there is no one waiting
                     pcb->state = "USING DEVICE2";
                     IO2.isEmpty = 0; // IO2 is filled
@@ -422,7 +446,7 @@ static void* processThread(void* param){
                         printInfo(pcb,"PROCESS ADDED TO DEVICE 2 QUEUE");
                     }
 
-                    pthread_cond_wait(&IO2.cv, &lock); // Thread put in IO1 ready queue(waiting queue)
+                    pthread_cond_wait(&IO2.cv, &IO2Lock); // Thread put in IO1 ready queue(waiting queue)
                     deQueue_tid(IO2.queue, pcb->tid); 
                     pcb->state = "USING DEVICE2"; 
                     IO2.count -= 1; // Lower IO2 ready queue waiters count 
@@ -435,7 +459,8 @@ static void* processThread(void* param){
                     pthread_cond_signal(&IO2.cv); // wakes random thread from I02.cv's ready queue
                     IO2.isEmpty = 1; // I02 is empty now
                 }
-            } //* IO2 UNLOCK
+                pthread_mutex_unlock(&IO2Lock);
+            } 
         }
     }
     return NULL;
