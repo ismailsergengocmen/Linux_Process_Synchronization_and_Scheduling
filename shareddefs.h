@@ -30,6 +30,7 @@ struct Device {
     pthread_cond_t cv;
     struct Queue* queue;
     int count;
+    int isEmpty;
 };
 
 // A linked list (LL) node to store a queue entry
