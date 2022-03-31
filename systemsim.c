@@ -36,13 +36,12 @@ void printInfo(struct PCB* pcb, char* text){
     curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
 
     if( OUTMODE == 2 ){
-        printf("%f %d %s\n", curTime - simulation_start_time, pcb->pid, pcb->state);
+        printf("%lld %d %s\n", (long long) (curTime - simulation_start_time), pcb->pid, pcb->state);
     }
 
     if( OUTMODE == 3 ){
-        printf("%f %d %s\n", curTime - simulation_start_time, pcb->pid, text);
+        printf("%lld %d %s\n", (long long) (curTime - simulation_start_time), pcb->pid, text);
     }
-
 }
 
 static void* process_generator(void* param) {
@@ -538,8 +537,6 @@ int main(int argc, char** argv) {
     pthread_join(generator_tid, NULL);
 
     
-    //printQ(TERMINATED);
-    printf("pid: %d\n", TERMINATED->rear->pcb.pid);  
-    //printf("pid2: %d\n", TERMINATED->rear->next->pcb.pid);  
+    printQ(TERMINATED);
     return 0;
 }
