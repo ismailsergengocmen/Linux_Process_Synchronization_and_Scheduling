@@ -91,46 +91,58 @@ static void* process_generator(void* param) {
             if (random <= pg) {
 
                 pthread_mutex_lock(&countLock);
-                if (total_process_count < ALLP && live_process_count < MAXP) {
+                int local_total_process_count = total_process_count;
+                int local_live_process_count = live_process_count;
+                pthread_mutex_unlock(&countLock);
+
+
+                if (local_total_process_count < ALLP && local_live_process_count < MAXP) {
                     struct PCB* pcb = (struct PCB*)malloc(sizeof(struct PCB));
+                    
+                    pthread_mutex_lock(&countLock);
                     pcb->pid = total_process_count + 1;
                     pthread_create (&tids[total_process_count], NULL, processThread, pcb);
+                    pthread_mutex_unlock(&countLock);
+
                     if(OUTMODE == 3){
                         printInfo(pcb,"NEW PROCESS CREATED");
                     }
-
+                    
+                    pthread_mutex_lock(&countLock);
                     live_process_count++;
                     total_process_count++;
+                    pthread_mutex_unlock(&countLock);
                 } 
-                else if (total_process_count == ALLP) {                    
-                    for(int i = 0; i < total_process_count; i++){
+                else if (local_total_process_count == ALLP) {  
+                    pthread_mutex_lock(&countLock);
+                    int local_total_process_count = total_process_count;
+                    pthread_mutex_unlock(&countLock);
+
+
+                    for(int i = 0; i < local_total_process_count; i++){
                         pthread_join(tids[i], NULL);
                     }
-                    printf("PT => Exit\n");
                     pthread_exit(0);
                 }
-                pthread_mutex_unlock(&countLock);
             }
         }
     }
     
     pthread_mutex_lock(&countLock);
-    // We need to wait for all threads
-    for(int i = 0; i < total_process_count; i++){
-        pthread_join(tids[i], NULL);
-    }
+    int local_total_process_count = total_process_count;
     pthread_mutex_unlock(&countLock);
 
-    printf("PG => Exit\n");
+    // We need to wait for all threads
+    for(int i = 0; i < local_total_process_count; i++){
+        pthread_join(tids[i], NULL);
+    }
+    
     pthread_exit(NULL);
     return NULL;    
 }
 
 static void* cpu_scheduler(void* param) {
-    // printf("CS => First line\n");
     while(1){
-
-        // printf("CS => Before while\n");
         //LOCK-a
         /**
          * If ALG is not RR and CPU is not empty(which is the case mostly in RR), scheduler should sleep
@@ -140,8 +152,7 @@ static void* cpu_scheduler(void* param) {
 
         pthread_mutex_lock(&countLock);
         if (live_process_count == 0 && total_process_count >= ALLP) {
-                printf("CS => EXIT-0\n");
-                pthread_exit(0);
+            pthread_exit(0);
         } 
         pthread_mutex_unlock(&countLock);
 
@@ -152,22 +163,19 @@ static void* cpu_scheduler(void* param) {
 
             pthread_mutex_lock(&countLock);
             if (live_process_count == 0 && total_process_count >= ALLP) {
-                printf("CS => EXIT-1\n");
                 pthread_exit(0);
             }
             pthread_mutex_unlock(&countLock);
-            //printf("CS => Sleeping\n");
 
-            pthread_mutex_lock(&schedulerLock);
-            pthread_cond_wait(&scheduler, &schedulerLock);
-            pthread_mutex_unlock(&schedulerLock);
+            // ! pthread_mutex_lock(&schedulerLock);
+            pthread_cond_wait(&scheduler, &CPULock);
+            // ! pthread_mutex_unlock(&schedulerLock);
 
         }
         pthread_mutex_unlock(&CPULock);
 
         AWAKESTATUS = 0;
         //UNLOCK-a
-        //printf("CS => Awaken\n");
 
         if(strcmp(ALG, "FCFS") == 0){
 
@@ -185,7 +193,6 @@ static void* cpu_scheduler(void* param) {
             pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
             *CPU.pcb = temp;
-            //printf("CS => CPU FILLED\n"); 
             pthread_cond_broadcast(&CPU.cv);
             pthread_mutex_unlock(&CPULock);
 
@@ -256,7 +263,6 @@ static void* cpu_scheduler(void* param) {
 
         }
     }
-    printf("CS => EXIT-2\n");
     pthread_exit(NULL);
     return NULL;
 }
@@ -530,6 +536,10 @@ int main(int argc, char** argv) {
 
     pthread_join(scheduler_tid, NULL);
     pthread_join(generator_tid, NULL);
-        
+
+    
+    //printQ(TERMINATED);
+    printf("pid: %d\n", TERMINATED->rear->pcb.pid);  
+    //printf("pid2: %d\n", TERMINATED->rear->next->pcb.pid);  
     return 0;
 }

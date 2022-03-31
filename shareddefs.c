@@ -115,9 +115,20 @@ struct PCB* deQueue_min(struct Queue* q){
 void printQ(struct Queue* q) {
     struct QNode* curr = q->front;
 
-    printf("PRINTING\n");
+    printf("\n-----PRINTING-----\n");
+    printf("pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2");
     while (curr != NULL) {
-        printf("%lld\n", curr->pcb.next_cpuburst_len);
+        int pid = curr->pcb.pid;
+        double arv = curr->pcb.arrival_time;
+        long long finish_time = curr->pcb.finish_time;
+        long long cpu = curr->pcb.total_exec_time;
+        long long waitr = curr->pcb.time_spend_ready;
+        long long turna = curr->pcb.finish_time - curr->pcb.arrival_time;
+        int n_bursts = curr->pcb.num_cpuburst;
+        int n_d1 = curr->pcb.device1_io_count;
+        int n_d2 = curr->pcb.device2_io_count;
+
+        printf("%d %f %lld %lld %lld %lld %lld %d %d %d\n", pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2);
         curr = curr->next;
     } 
 }
