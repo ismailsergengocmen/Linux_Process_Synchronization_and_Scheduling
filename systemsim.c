@@ -36,11 +36,11 @@ void printInfo(struct PCB* pcb, char* text){
     curTime = (currentTime.tv_usec * 0.001 + currentTime.tv_sec * 1000);
 
     if( OUTMODE == 2 ){
-        printf("%lld %d %s\n", (long long) (curTime - simulation_start_time), pcb->pid, pcb->state);
+        printf("%f %d %s\n", (curTime - simulation_start_time), pcb->pid, pcb->state);
     }
 
     if( OUTMODE == 3 ){
-        printf("%lld %d %s\n", (long long) (curTime - simulation_start_time), pcb->pid, text);
+        printf("%f %d %s\n", (curTime - simulation_start_time), pcb->pid, text);
     }
 }
 
@@ -156,7 +156,10 @@ static void* cpu_scheduler(void* param) {
         pthread_mutex_unlock(&countLock);
 
         pthread_mutex_lock(&CPULock);
-        while(AWAKESTATUS == 0 || CPU.count == 0 || CPU.isEmpty == 0){
+        while(AWAKESTATUS == 0 || CPU.count == 0 || CPU.isEmpty == 0 ){
+            if(CPU.isEmpty == 0 && strcmp(ALG,"RR") == 0){
+                break;
+            }
             // printf("Live: %d - Total:%d\n", live_process_count, total_process_count);
             // If there is no process in CPU and there is no one in ready queue
 
@@ -187,7 +190,7 @@ static void* cpu_scheduler(void* param) {
             if(OUTMODE == 3){
                 printInfo(CPU.pcb,"PROCESS SELECTED FOR CPU");
             }
-            temp.num_cpuburst += 1;
+            //temp.num_cpuburst += 1;
 
             pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
@@ -208,7 +211,7 @@ static void* cpu_scheduler(void* param) {
                 printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
             }
             temp.state = "RUNNING";
-            temp.num_cpuburst += 1;
+            //temp.num_cpuburst += 1;
 
             pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
@@ -249,7 +252,7 @@ static void* cpu_scheduler(void* param) {
             }
 
             temp.state = "RUNNING";
-            temp.num_cpuburst += 1;
+            //temp.num_cpuburst += 1;
 
             pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
@@ -259,7 +262,6 @@ static void* cpu_scheduler(void* param) {
             }
             pthread_cond_broadcast(&CPU.cv);
             pthread_mutex_unlock(&CPULock);
-
         }
     }
     pthread_exit(NULL);
@@ -343,9 +345,11 @@ static void* processThread(void* param){
         printInfo(pcb, NULL);
         usleep(sleeptime * 1000);  // If it wakes, it means it's in CPU so it will usleep
         
+
         pthread_mutex_lock(&CPULock);
         CPU.pcb->total_exec_time += sleeptime;
         CPU.pcb->rem_cpuburst_len -= sleeptime;
+        CPU.pcb->num_cpuburst += 1;
         pthread_mutex_unlock(&CPULock);
 
         if(strcmp(ALG, "RR") != 0){
@@ -402,6 +406,7 @@ static void* processThread(void* param){
 
                     usleep(T1 * 1000); // Operates on I01 for t1 milisecond
                     pcb->device1_io_count += 1;
+                    printf("pcb. pid = %d    pcb device1 io count = %d\n", IO1.pcb->pid, IO1.pcb->device1_io_count);
                     pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
                     IO1.isEmpty = 1;
                 }
@@ -424,6 +429,7 @@ static void* processThread(void* param){
 
                     usleep(T1 * 1000); // Operates on I01 for t1 milisecond
                     pcb->device1_io_count += 1;
+                    printf("pcb. pid = %d    pcb device1 io count = %d\n", IO1.pcb->pid, IO1.pcb->device1_io_count);
                     pthread_cond_signal(&IO1.cv); // wakes random thread from I01.cv's ready queue
                     IO1.isEmpty = 1; // I01 is empty now
                 }
@@ -440,6 +446,7 @@ static void* processThread(void* param){
                     printInfo(pcb, "USING DEVICE2");
                     usleep(T2 * 1000); // Operates on I02 for t2 milisecond
                     pcb->device2_io_count += 1;
+                    printf("pcb. pid = %d    pcb device2 io count = %d\n", IO2.pcb->pid, IO2.pcb->device2_io_count);
                     pthread_cond_signal(&IO2.cv); // wakes random thread from I02.cv's ready queue
                     IO2.isEmpty = 1; // IO2 is emptied
                 }
@@ -461,6 +468,7 @@ static void* processThread(void* param){
                     printInfo(pcb, "USING DEVICE2");
                     usleep(T2 * 1000); // Operates on I02 for t2 milisecond
                     pcb->device2_io_count += 1;
+                    printf("pcb. pid = %d    pcb device2 io count = %d\n", IO2.pcb->pid, IO2.pcb->device2_io_count);
                     pthread_cond_signal(&IO2.cv); // wakes random thread from I02.cv's ready queue
                     IO2.isEmpty = 1; // I02 is empty now
                 }
