@@ -201,19 +201,19 @@ static void* cpu_scheduler(void* param) {
         else if(strcmp(ALG, "SJF") == 0){
 
             pthread_mutex_lock(&CPULock);
-            struct PCB* temp = deQueue_min(CPU.queue);
+            struct PCB temp = deQueue_min(CPU.queue);
             CPU.count -= 1;
             pthread_mutex_unlock(&CPULock);
 
             if(OUTMODE == 3){
-                printInfo(temp,"PROCESS IS SELECTED FOR CPU");
+                printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
             }
-            temp->state = "RUNNING";
-            temp->num_cpuburst += 1;
+            temp.state = "RUNNING";
+            temp.num_cpuburst += 1;
 
             pthread_mutex_lock(&CPULock);
             CPU.isEmpty = 0;
-            CPU.pcb = temp;
+            *CPU.pcb = temp;
             pthread_mutex_unlock(&CPULock);
 
             if(OUTMODE == 3){
@@ -415,7 +415,7 @@ static void* processThread(void* param){
                     }
 
                     pthread_cond_wait(&IO1.cv, &IO1Lock); // Thread put in IO1 ready queue(waiting queue)
-                    deQueue_tid(IO1.queue, pcb->tid);
+                    deQueue_pid(IO1.queue, pcb->pid);
 
                     pcb->state = "USING DEVICE1"; 
                     IO1.count -= 1; // Lower IO1 ready queue waiters count 
@@ -453,7 +453,7 @@ static void* processThread(void* param){
                     }
 
                     pthread_cond_wait(&IO2.cv, &IO2Lock); // Thread put in IO1 ready queue(waiting queue)
-                    deQueue_tid(IO2.queue, pcb->tid); 
+                    deQueue_pid(IO2.queue, pcb->pid); 
                     pcb->state = "USING DEVICE2"; 
                     IO2.count -= 1; // Lower IO2 ready queue waiters count 
                     IO2.isEmpty = 0; // IO2 is filled now

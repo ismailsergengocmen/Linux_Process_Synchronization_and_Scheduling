@@ -21,7 +21,6 @@ int OUTMODE;
 
 int live_process_count = 0;
 int total_process_count = 0;
-int process_count = 1;
 
 struct Device CPU;
 struct Device IO1;
@@ -36,6 +35,7 @@ pthread_mutex_t schedulerLock;
 pthread_mutex_t CPULock;
 pthread_mutex_t IO1Lock;
 pthread_mutex_t IO2Lock;
+pthread_mutex_t awakeLock;
 
 int AWAKESTATUS = 0;
 
