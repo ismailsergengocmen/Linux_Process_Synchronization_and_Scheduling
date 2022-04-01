@@ -137,7 +137,7 @@ void update(struct Queue* q, struct PCB pcb){
 void printQ(struct Queue* q) {
     struct QNode* curr;
     printf("\n-----PRINTING-----\n");
-    printf("pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2\n");
+    printf("pid, arv, finish_time, waitr, turna, cpu, n_bursts, n_d1, n_d2\n");
 
     for(int i = 1; i <= ALLP; i++){
         curr = q-> front;
@@ -153,7 +153,7 @@ void printQ(struct Queue* q) {
                 int n_d1 = curr->pcb.device1_io_count;
                 int n_d2 = curr->pcb.device2_io_count;             
 
-                printf("%d %.2f %lld %lld %lld %lld %d %d %d\n", pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2 );
+                printf("%d %.2f %lld %lld %lld %lld %d %d %d\n", pid, arv, finish_time, waitr, turna, cpu, n_bursts, n_d1, n_d2 );
                 break;
             }
             curr = curr->next;
