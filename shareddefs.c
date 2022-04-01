@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "shareddefs.h"
 
+extern int ALLP;
+
 // A utility function to create a new linked list node.
 struct QNode* newNode(struct PCB pcb)
 {
@@ -24,7 +26,6 @@ void enQueue(struct Queue* q, struct PCB pcb)
 {
     // Create a new LL node
     struct QNode* temp = newNode(pcb);
-
     // If queue is empty, then new node is front and rear both
     if (q->rear == NULL) {
         q->front = q->rear = temp;
@@ -49,8 +50,7 @@ struct PCB deQueue(struct Queue* q)
         q->rear = NULL;
 
     struct PCB tempPCB = temp->pcb; 
-    free(temp);
-
+    //free(temp);
     return tempPCB;
 }
 
@@ -122,25 +122,43 @@ struct PCB deQueue_min(struct Queue* q){
     return temp;
 }
 
-void printQ(struct Queue* q) {
-    struct QNode* curr = q->front;
+void update(struct Queue* q, struct PCB pcb){
+    struct QNode* current = q->front;
 
+    while(current != NULL){
+        if(current->pcb.pid == pcb.pid){
+            current->pcb = pcb;
+            return;
+        }
+        current = current->next;
+    }
+}
+
+void printQ(struct Queue* q) {
+    struct QNode* curr;
     printf("\n-----PRINTING-----\n");
     printf("pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2\n");
-    while (curr != NULL) {
-        int pid = curr->pcb.pid;
-        double arv = curr->pcb.arrival_time;
-        long long finish_time = curr->pcb.finish_time;
-        long long cpu = curr->pcb.total_exec_time;
-        long long waitr = curr->pcb.time_spend_ready;
-        long long turna = curr->pcb.finish_time - curr->pcb.arrival_time;
-        int n_bursts = curr->pcb.num_cpuburst;
-        int n_d1 = curr->pcb.device1_io_count;
-        int n_d2 = curr->pcb.device2_io_count;             
 
-        printf("%d %f %lld %lld %lld %lld %d %d %d\n", pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2 );
-        curr = curr->next;
-    } 
+    for(int i = 1; i <= ALLP; i++){
+        curr = q-> front;
+        while (curr != NULL) {
+            if( curr-> pcb.pid == i){
+                int pid = curr->pcb.pid;
+                double arv = curr->pcb.arrival_time;
+                long long finish_time = curr->pcb.finish_time;
+                long long cpu = curr->pcb.total_exec_time;
+                long long waitr = curr->pcb.time_spend_ready;
+                long long turna = curr->pcb.finish_time - curr->pcb.arrival_time;
+                int n_bursts = curr->pcb.num_cpuburst;
+                int n_d1 = curr->pcb.device1_io_count;
+                int n_d2 = curr->pcb.device2_io_count;             
+
+                printf("%d %.2f %lld %lld %lld %lld %d %d %d\n", pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2 );
+                break;
+            }
+            curr = curr->next;
+        } 
+    }
 }
 
 
