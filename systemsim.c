@@ -88,7 +88,7 @@ static void* process_generator(void* param) {
             usleep(5000);
             double random = (double)rand() / RAND_MAX;
 
-            if (random <= pg) {
+            if (random < pg) {
 
                 pthread_mutex_lock(&countLock);
                 int local_total_process_count = total_process_count;
@@ -141,7 +141,6 @@ static void* process_generator(void* param) {
 
 static void* cpu_scheduler(void* param) {
     while(1){
-        //LOCK-a
         /**
          * If ALG is not RR and CPU is not empty(which is the case mostly in RR), scheduler should sleep
          * But if it is RR, it should not sleep even if CPU is full
@@ -155,27 +154,18 @@ static void* cpu_scheduler(void* param) {
 
         pthread_mutex_lock(&CPULock);
         while(AWAKESTATUS == 0 || CPU.count == 0 || CPU.isEmpty == 0 ){
-            if(CPU.isEmpty == 0 && strcmp(ALG,"RR") == 0){
-                break;
-            }
-
             pthread_mutex_lock(&countLock);
             if (live_process_count == 0 && total_process_count >= ALLP) {
                 pthread_exit(0);
             }
             pthread_mutex_unlock(&countLock);
-
-            // ! pthread_mutex_lock(&schedulerLock);
             pthread_cond_wait(&scheduler, &CPULock);
-            // ! pthread_mutex_unlock(&schedulerLock);
-
         }
         pthread_mutex_unlock(&CPULock);
 
         AWAKESTATUS = 0;
-        //UNLOCK-a
 
-        if(strcmp(ALG, "FCFS") == 0){
+        if(strcmp(ALG, "FCFS") == 0 || strcmp(ALG, "RR") == 0){
 
             pthread_mutex_lock(&CPULock);
             struct PCB temp = deQueue(CPU.queue);
@@ -218,38 +208,6 @@ static void* cpu_scheduler(void* param) {
             pthread_cond_broadcast(&CPU.cv);
             pthread_mutex_unlock(&CPULock);
         }
-
-        else{
-            pthread_mutex_lock(&CPULock);
-            if(CPU.isEmpty == 0){
-                CPU.pcb->state = "READY";
-                if(OUTMODE == 3){
-                    printInfo(CPU.pcb,"PROCESS EXPIRED ITS TIME QUANTUM");
-                    printInfo(CPU.pcb,"PROCESS ADDED TO READY QUEUE");
-                }
-                enQueue(CPU.queue, *CPU.pcb);
-                CPU.count += 1;
-                CPU.pcb->rem_cpuburst_len -= atoi(Q);
-                CPU.isEmpty = 1;
-            }
-
-            struct PCB temp = deQueue(CPU.queue);
-            CPU.count -= 1;
-            pthread_mutex_unlock(&CPULock);
-
-            if(OUTMODE == 3){
-                printInfo(&temp,"PROCESS IS SELECTED FOR CPU");
-            }
-
-            temp.state = "RUNNING";
-
-            printInfo(&temp, temp.state);
-            pthread_mutex_lock(&CPULock);
-            CPU.isEmpty = 0;
-            *CPU.pcb = temp;
-            pthread_cond_broadcast(&CPU.cv);
-            pthread_mutex_unlock(&CPULock);
-        }
     }
     pthread_exit(NULL);
     return NULL;
@@ -285,16 +243,15 @@ static void* processThread(void* param){
             calculateNewCpuBurst(pcb); // Calculate next cpu burst
         
         pthread_mutex_lock(&CPULock);
-        if(strcmp(ALG,"RR") != 0 || ( strcmp(ALG,"RR") == 0 && CPU.isEmpty == 1 )) {
-            CPU.count += 1;
-            pcb->state = "READY";
-            enQueue(CPU.queue, *pcb); // Added to ready queue
+        CPU.count += 1;
+        pcb->state = "READY";
+        enQueue(CPU.queue, *pcb); // Added to ready queue
             
-            if(OUTMODE == 3){
-                printInfo(pcb,"ADDED TO READY QUEUE");
-            }
-        }    
+        if(OUTMODE == 3){
+            printInfo(pcb,"ADDED TO READY QUEUE");
+        }  
         pthread_mutex_unlock(&CPULock);
+        
         pthread_mutex_lock(&schedulerLock);
         AWAKESTATUS = 1;
         pthread_cond_signal(&scheduler);
@@ -338,18 +295,23 @@ static void* processThread(void* param){
         update(CPU.queue, *pcb);
         pthread_mutex_unlock(&CPULock);
 
-        if(strcmp(ALG, "RR") != 0){
-            pthread_mutex_lock(&CPULock);
-            CPU.isEmpty = 1;
-            pthread_mutex_unlock(&CPULock);
+        pthread_mutex_lock(&CPULock);
+        CPU.pcb->tid = -99;
+        CPU.isEmpty = 1;
+        pthread_mutex_unlock(&CPULock);
 
-        }
         pthread_mutex_lock(&schedulerLock);
         AWAKESTATUS = 1;
         pthread_cond_signal(&scheduler);
         pthread_mutex_unlock(&schedulerLock);
 
-        if(pcb->rem_cpuburst_len == 0){
+        if (strcmp(ALG, "RR") == 0) {
+            if(OUTMODE == 3){
+                printInfo(pcb,"PROCESS EXPIRED ITS TIME QUANTUM");
+            }
+        }
+
+        if(pcb->rem_cpuburst_len <= 0){
             double chance = (double) rand() / RAND_MAX;
 
             double minInterval = p0;
@@ -467,9 +429,10 @@ int main(int argc, char** argv) {
     burstlen = strtoll(argv[6], NULL, 10);
     min_burst = strtoll(argv[7], NULL, 10);
     max_burst = strtoll(argv[8], NULL, 10);
-    p0 = strtod(argv[9], NULL);
-    p1 = strtod(argv[10], NULL);
-    p2 = strtod(argv[11], NULL);
+    double total = strtod(argv[9], NULL) + strtod(argv[10], NULL) + strtod(argv[11], NULL);
+    p0 = strtod(argv[9], NULL) / total;
+    p1 = strtod(argv[10], NULL) / total;
+    p2 = strtod(argv[11], NULL) / total;
     pg = strtod(argv[12], NULL);
     MAXP = atoi(argv[13]);
     ALLP = atoi(argv[14]);
@@ -520,7 +483,6 @@ int main(int argc, char** argv) {
     pthread_join(scheduler_tid, NULL);
     pthread_join(generator_tid, NULL);
 
-    
     printQ(TERMINATED);
     return 0;
 }

@@ -4,7 +4,6 @@
 
 extern int ALLP;
 
-// A utility function to create a new linked list node.
 struct QNode* newNode(struct PCB pcb)
 {
     struct QNode* temp = (struct QNode*)malloc(sizeof(struct QNode));
@@ -13,44 +12,38 @@ struct QNode* newNode(struct PCB pcb)
     return temp;
 }
 
-// A utility function to create an empty queue
 struct Queue* createQueue()
 {
     struct Queue* q = (struct Queue*)malloc(sizeof(struct Queue));
-    q->front = q->rear = NULL;
+    q->front = NULL;
+    q->rear = NULL;
     return q;
 }
 
-// The function to add a key k to q
 void enQueue(struct Queue* q, struct PCB pcb)
 {
-    // Create a new LL node
     struct QNode* temp = newNode(pcb);
-    // If queue is empty, then new node is front and rear both
     if (q->rear == NULL) {
-        q->front = q->rear = temp;
+        q->front = temp;
+        q->rear = temp;
         return;
     }
 
-    // Add the new node at the end of queue and change rear
     q->rear->next = temp;
     q->rear = temp;
 }
 
-// Function to remove a key from given queue q
 struct PCB deQueue(struct Queue* q)
 {
-    // Store previous front and move front one node ahead
     struct QNode* temp = q->front;
     
     q->front = q->front->next;
 
-    // If front becomes NULL, then change rear also as NULL
     if (q->front == NULL)
         q->rear = NULL;
 
     struct PCB tempPCB = temp->pcb; 
-    //free(temp);
+    free(temp);
     return tempPCB;
 }
 
@@ -110,7 +103,6 @@ struct PCB* findMin(struct Queue* q){
                 current = current->next;
             }
         }
-        printf("findMin end: %d\n", min->pid);
         return min;
     }
 }
@@ -136,7 +128,7 @@ void update(struct Queue* q, struct PCB pcb){
 
 void printQ(struct Queue* q) {
     struct QNode* curr;
-    printf("\n-----PRINTING-----\n");
+    printf("\n-----PRINTING RESULT TABLE-----\n");
     printf("pid, arv, finish_time, cpu, waitr, turna, n_bursts, n_d1, n_d2\n");
 
     for(int i = 1; i <= ALLP; i++){
@@ -160,5 +152,3 @@ void printQ(struct Queue* q) {
         } 
     }
 }
-
-

@@ -33,7 +33,6 @@ struct Device {
     int isEmpty;
 };
 
-// A linked list (LL) node to store a queue entry
 struct QNode {
     struct PCB pcb;
     struct QNode* next;
