@@ -33,8 +33,10 @@ pthread_cond_t scheduler;
 pthread_mutex_t countLock;
 pthread_mutex_t schedulerLock;
 pthread_mutex_t CPULock;
-pthread_mutex_t IO1Lock;
-pthread_mutex_t IO2Lock;
+pthread_mutex_t IO1QueueLock;
+pthread_mutex_t IO1RunLock;
+pthread_mutex_t IO2QueueLock;
+pthread_mutex_t IO2RunLock;
 pthread_mutex_t awakeLock;
 
 int AWAKESTATUS = 0;
